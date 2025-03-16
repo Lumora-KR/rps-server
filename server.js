@@ -1,0 +1,75 @@
+// server.js
+const express = require("express");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const path = require("path");
+const { initializeModels } = require("./models");
+
+// Load environment variables
+dotenv.config();
+
+// Import routes
+const { router: authRoutes, verifyToken } = require("./routes/auth");
+const contactFormRoute = require("./routes/contactForm");
+const homeEnquiryFormRoute = require("./routes/homeEnquiryForm");
+const tourPackagesFormRoute = require("./routes/tourPackagesForm");
+const hotelsFormRoute = require("./routes/hotelsForm");
+const tourPackageDetailFormRoute = require("./routes/tourPackageDetailForm");
+const carRentalDetailFormRoute = require("./routes/carRentalDetailForm");
+// New routes
+const carRentalRoute = require("./routes/carRental");
+const hotelRoute = require("./routes/hotel");
+const hotelEnquiryRoute = require("./routes/hotelEnquiry");
+
+const app = express();
+
+// Initialize database and models
+initializeModels();
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Serve static files from the uploads directory
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Public routes
+app.use("/api/auth", authRoutes);
+app.use("/api/contact", contactFormRoute);
+app.use("/api/home-enquiry", homeEnquiryFormRoute);
+app.use("/api/tour-packages", tourPackagesFormRoute);
+app.use("/api/hotels", hotelsFormRoute);
+app.use("/api/tour-package-detail", tourPackageDetailFormRoute);
+app.use("/api/car-rental-detail", carRentalDetailFormRoute);
+// New route handlers
+app.use("/api/car-rentals", carRentalRoute);
+app.use("/api/hotels-list", hotelRoute);
+app.use("/api/hotel-enquiries", hotelEnquiryRoute);
+
+console.log("Registered route: /api/tour-packages");
+console.log("Registered route: /api/car-rentals");
+console.log("Registered route: /api/hotels-list");
+
+// Protected dashboard routes
+app.use("/api/dashboard", verifyToken, (req, res) => {
+  res.json({ message: "Welcome to the dashboard API" });
+});
+
+// Basic route for testing
+app.get("/", (req, res) => {
+  res.send("RPS Tours Email Server is running");
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send({ success: false, message: "Something went wrong!" });
+});
+
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

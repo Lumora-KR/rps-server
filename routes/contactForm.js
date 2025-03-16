@@ -1,0 +1,163 @@
+// server/routes/contactForm.js
+const express = require("express");
+const router = express.Router();
+const { sendEmail } = require("../utils/emailConfig");
+const { ContactForm } = require("../models");
+const { Op, fn, col, literal } = require("sequelize");
+const sequelize = require("../config/database");
+
+// POST route for form submission
+router.post("/", async (req, res) => {
+  try {
+    const { name, email, phone, subject, message } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    // Save to database
+    const contact = await ContactForm.create(req.body);
+
+    // Prepare email content
+    const mailOptions = {
+      subject: `Contact Form: ${subject || "New Message"}`,
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${phone}</p>
+        <p><strong>Subject:</strong> ${subject || "Not specified"}</p>
+        <h3>Message:</h3>
+        <p>${message}</p>
+        <hr>
+        <p><em>This message was submitted from the Contact form on the RPS Tours website.</em></p>
+      `,
+    };
+
+    // Send email
+    await sendEmail(mailOptions);
+
+    // Send confirmation email to customer
+    const confirmationMailOptions = {
+      to: email,
+      subject: `Thank you for contacting us - RPS Tours`,
+      html: `
+        <h2>Thank You for Contacting Us</h2>
+        <p>Dear ${name},</p>
+        <p>We have received your message and our team will get back to you shortly.</p>
+        <p>Best Regards,<br>RPS Tours Team</p>
+      `,
+    };
+
+    await sendEmail(confirmationMailOptions);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Your message has been sent successfully. We will contact you soon!",
+      data: contact,
+    });
+  } catch (error) {
+    console.error("Contact form submission error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send your message. Please try again later.",
+    });
+  }
+});
+
+// GET route for retrieving all contact form submissions
+router.get("/", async (req, res) => {
+  try {
+    const contacts = await ContactForm.findAll({
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.status(200).json({
+      success: true,
+      data: contacts,
+    });
+  } catch (error) {
+    console.error("Error fetching contact form submissions:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch contact form submissions",
+    });
+  }
+});
+
+// GET route for chart data
+router.get("/chart", async (req, res) => {
+  try {
+    // Get the last 30 days
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const contactForms = await ContactForm.findAll({
+      where: {
+        createdAt: {
+          [Op.between]: [startDate, endDate],
+        },
+      },
+      attributes: [
+        [fn("DATE", col("createdAt")), "date"], // Use imported fn and col
+        [fn("COUNT", col("id")), "count"], // Use imported fn and col
+      ],
+      group: [fn("DATE", col("createdAt"))], // Use imported fn and col
+      order: [[fn("DATE", col("createdAt")), "ASC"]],
+    });
+
+    // Format data for Chart.js
+    const labels = [];
+    const data = [];
+
+    // Create a map of dates to counts
+    const dateMap = new Map();
+    contactForms.forEach((item) => {
+      dateMap.set(
+        item.getDataValue("date"),
+        parseInt(item.getDataValue("count"))
+      );
+    });
+
+    // Fill in all dates in the range
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dateStr = d.toISOString().split("T")[0];
+      labels.push(dateStr);
+      data.push(dateMap.get(dateStr) || 0);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Contact Form Submissions",
+            data,
+            backgroundColor: "rgba(230, 57, 70, 0.5)",
+            borderColor: "rgba(230, 57, 70, 1)",
+            borderWidth: 1,
+          },
+        ],
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching chart data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch chart data",
+    });
+  }
+});
+
+module.exports = router;
