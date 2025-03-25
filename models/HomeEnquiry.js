@@ -64,7 +64,7 @@ const HomeEnquiry = sequelize.define(
       allowNull: true,
     },
     travelers: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING,
       allowNull: true,
       defaultValue: 1,
     },
