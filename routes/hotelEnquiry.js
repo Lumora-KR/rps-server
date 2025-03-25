@@ -1,4 +1,3 @@
-// routes/hotelEnquiry.js
 const express = require("express");
 const router = express.Router();
 const { sendEmail } = require("../utils/emailConfig");
@@ -58,6 +57,7 @@ router.post("/", async (req, res) => {
       guests: guests || 1,
       rooms: rooms || 1,
       message,
+      status: "pending",
     });
 
     // Prepare email content for admin
@@ -159,22 +159,300 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET route for retrieving all hotel enquiries
+// GET route for retrieving all hotel enquiries with pagination
 router.get("/", async (req, res) => {
   try {
-    const hotelEnquiries = await HotelEnquiry.findAll({
+    // Add pagination support
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const status = req.query.status;
+    const search = req.query.search;
+
+    // Build where clause
+    let whereClause = {};
+
+    // Add status filter if provided
+    if (status && status !== "all") {
+      whereClause.status = status;
+    }
+
+    // Add search filter if provided
+    if (search) {
+      whereClause = {
+        ...whereClause,
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { email: { [Op.like]: `%${search}%` } },
+          { phone: { [Op.like]: `%${search}%` } },
+          { hotelName: { [Op.like]: `%${search}%` } },
+        ],
+      };
+    }
+
+    const { count, rows: hotelEnquiries } = await HotelEnquiry.findAndCountAll({
+      where: whereClause,
       order: [["createdAt", "DESC"]],
+      limit,
+      offset,
     });
+
+    const totalPages = Math.ceil(count / limit);
 
     res.status(200).json({
       success: true,
       data: hotelEnquiries,
+      pagination: {
+        total: count,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
     });
   } catch (error) {
     console.error("Error fetching hotel enquiries:", error);
     res.status(500).json({
       success: false,
       message: "Failed to fetch hotel enquiries",
+    });
+  }
+});
+
+// GET route for retrieving a specific hotel enquiry by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const hotelEnquiry = await HotelEnquiry.findByPk(req.params.id);
+
+    if (!hotelEnquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Hotel enquiry not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: hotelEnquiry,
+    });
+  } catch (error) {
+    console.error("Error fetching hotel enquiry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch hotel enquiry",
+    });
+  }
+});
+
+// PUT route for updating a hotel enquiry
+router.put("/:id", async (req, res) => {
+  try {
+    const {
+      hotelId,
+      hotelName,
+      name,
+      email,
+      phone,
+      checkInDate,
+      checkOutDate,
+      guests,
+      rooms,
+      message,
+      status,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !checkInDate || !checkOutDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    const hotelEnquiry = await HotelEnquiry.findByPk(req.params.id);
+
+    if (!hotelEnquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Hotel enquiry not found",
+      });
+    }
+
+    // Update the hotel enquiry
+    await hotelEnquiry.update({
+      hotelId,
+      hotelName,
+      name,
+      email,
+      phone,
+      checkInDate,
+      checkOutDate,
+      guests: guests || 1,
+      rooms: rooms || 1,
+      message,
+      status,
+    });
+
+    // If status has changed, send notification email
+    if (req.body.status && req.body.status !== hotelEnquiry.status) {
+      const statusMailOptions = {
+        to: email,
+        subject: `Hotel Booking Status Update - RPS Tours`,
+        html: `
+          <h2>Your Hotel Booking Status Has Been Updated</h2>
+          <p>Dear ${name},</p>
+          <p>Your hotel booking request for ${hotelName} has been updated to: <strong>${status}</strong>.</p>
+          <p>Your booking details:</p>
+          <ul>
+            <li><strong>Check-in Date:</strong> ${formatDate(checkInDate)}</li>
+            <li><strong>Check-out Date:</strong> ${formatDate(
+              checkOutDate
+            )}</li>
+            <li><strong>Guests:</strong> ${guests || 1}</li>
+            <li><strong>Rooms:</strong> ${rooms || 1}</li>
+          </ul>
+          <p>If you have any questions, please feel free to contact us.</p>
+          <p>Best Regards,<br>RPS Tours Team</p>
+        `,
+      };
+
+      await sendEmail(statusMailOptions);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Hotel enquiry updated successfully",
+      data: hotelEnquiry,
+    });
+  } catch (error) {
+    console.error("Error updating hotel enquiry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update hotel enquiry",
+    });
+  }
+});
+
+// DELETE route for deleting a hotel enquiry
+router.delete("/:id", async (req, res) => {
+  try {
+    const hotelEnquiry = await HotelEnquiry.findByPk(req.params.id);
+
+    if (!hotelEnquiry) {
+      return res.status(404).json({
+        success: false,
+        message: "Hotel enquiry not found",
+      });
+    }
+
+    await hotelEnquiry.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Hotel enquiry deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting hotel enquiry:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete hotel enquiry",
+    });
+  }
+});
+
+// GET route for chart data (daily hotel enquiries)
+router.get("/stats/chart", async (req, res) => {
+  try {
+    // Get the last 30 days
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+
+    const hotelEnquiries = await HotelEnquiry.findAll({
+      where: {
+        createdAt: {
+          [Op.between]: [startDate, endDate],
+        },
+      },
+      attributes: [
+        [fn("DATE", col("createdAt")), "date"],
+        [fn("COUNT", col("id")), "count"],
+      ],
+      group: [fn("DATE", col("createdAt"))],
+      order: [[fn("DATE", col("createdAt")), "ASC"]],
+    });
+
+    // Format data for Chart.js
+    const labels = [];
+    const data = [];
+
+    // Create a map of dates to counts
+    const dateMap = new Map();
+    hotelEnquiries.forEach((item) => {
+      dateMap.set(
+        item.getDataValue("date"),
+        Number.parseInt(item.getDataValue("count"))
+      );
+    });
+
+    // Fill in all dates in the range
+    for (
+      let d = new Date(startDate);
+      d <= endDate;
+      d.setDate(d.getDate() + 1)
+    ) {
+      const dateStr = d.toISOString().split("T")[0];
+      labels.push(dateStr);
+      data.push(dateMap.get(dateStr) || 0);
+    }
+
+    // Get status statistics - check if status column exists
+    let statusData = [];
+    try {
+      const statusStats = await HotelEnquiry.findAll({
+        attributes: ["status", [fn("COUNT", col("id")), "count"]],
+        group: ["status"],
+        order: [[col("count"), "DESC"]],
+      });
+
+      // Format status data
+      statusData = statusStats.map((stat) => ({
+        status: stat.status || "pending",
+        count: Number.parseInt(stat.getDataValue("count")),
+      }));
+    } catch (error) {
+      console.error("Error fetching status statistics:", error);
+      // Provide default status data if column doesn't exist
+      statusData = [
+        { status: "pending", count: 0 },
+        { status: "confirmed", count: 0 },
+        { status: "cancelled", count: 0 },
+      ];
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        timeSeriesData: {
+          labels,
+          datasets: [
+            {
+              label: "Hotel Enquiries",
+              data,
+              backgroundColor: "rgba(33, 150, 243, 0.5)",
+              borderColor: "rgba(33, 150, 243, 1)",
+              borderWidth: 1,
+            },
+          ],
+        },
+        statusData,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching chart data:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch chart data",
+      error: error.message,
     });
   }
 });

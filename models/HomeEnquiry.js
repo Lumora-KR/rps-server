@@ -1,4 +1,3 @@
-// models/HomeEnquiry.js
 const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 
@@ -25,6 +24,14 @@ const HomeEnquiry = sequelize.define(
     phone: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+    message: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.ENUM("pending", "confirmed", "cancelled", "completed"),
+      defaultValue: "pending",
     },
     // Car specific fields
     fromLocation: {
@@ -57,8 +64,9 @@ const HomeEnquiry = sequelize.define(
       allowNull: true,
     },
     travelers: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       allowNull: true,
+      defaultValue: 1,
     },
     // Hotel specific fields
     destination: {
@@ -74,16 +82,9 @@ const HomeEnquiry = sequelize.define(
       allowNull: true,
     },
     rooms: {
-      type: DataTypes.STRING,
+      type: DataTypes.INTEGER,
       allowNull: true,
-    },
-    createdAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-    },
-    updatedAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
+      defaultValue: 1,
     },
   },
   {

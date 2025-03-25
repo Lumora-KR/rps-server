@@ -1,4 +1,3 @@
-// routes/carRentalDetailForm.js
 const express = require("express");
 const router = express.Router();
 const { sendEmail } = require("../utils/emailConfig");
@@ -118,13 +117,55 @@ router.post("/", async (req, res) => {
 // GET route for retrieving all car rental details
 router.get("/", async (req, res) => {
   try {
-    const carRentalDetails = await CarRentalDetail.findAll({
-      order: [["createdAt", "DESC"]],
-    });
+    // Add pagination support
+    const page = Number.parseInt(req.query.page) || 1;
+    const limit = Number.parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    const status = req.query.status;
+    const search = req.query.search;
+
+    // Build where clause
+    let whereClause = {};
+
+    // Add status filter if provided
+    if (status && status !== "all") {
+      whereClause.status = status;
+    }
+
+    // Add search filter if provided
+    if (search) {
+      whereClause = {
+        ...whereClause,
+        [Op.or]: [
+          { name: { [Op.like]: `%${search}%` } },
+          { email: { [Op.like]: `%${search}%` } },
+          { phone: { [Op.like]: `%${search}%` } },
+          { carName: { [Op.like]: `%${search}%` } },
+          { pickupLocation: { [Op.like]: `%${search}%` } },
+          { returnLocation: { [Op.like]: `%${search}%` } },
+        ],
+      };
+    }
+
+    const { count, rows: carRentalDetails } =
+      await CarRentalDetail.findAndCountAll({
+        where: whereClause,
+        order: [["createdAt", "DESC"]],
+        limit,
+        offset,
+      });
+
+    const totalPages = Math.ceil(count / limit);
 
     res.status(200).json({
       success: true,
       data: carRentalDetails,
+      pagination: {
+        total: count,
+        totalPages,
+        currentPage: page,
+        limit,
+      },
     });
   } catch (error) {
     console.error("Error fetching car rental details:", error);
@@ -135,8 +176,150 @@ router.get("/", async (req, res) => {
   }
 });
 
+// GET route for retrieving a specific car rental detail by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const carRentalDetail = await CarRentalDetail.findByPk(req.params.id);
+
+    if (!carRentalDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "Car rental detail not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: carRentalDetail,
+    });
+  } catch (error) {
+    console.error("Error fetching car rental detail:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch car rental detail",
+    });
+  }
+});
+
+// PUT route for updating a car rental detail
+router.put("/:id", async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      carId,
+      carName,
+      pickupDate,
+      returnDate,
+      pickupLocation,
+      returnLocation,
+      message,
+      status,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !carId || !pickupDate || !returnDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Please provide all required fields",
+      });
+    }
+
+    const carRentalDetail = await CarRentalDetail.findByPk(req.params.id);
+
+    if (!carRentalDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "Car rental detail not found",
+      });
+    }
+
+    // Update the car rental detail
+    await carRentalDetail.update({
+      name,
+      email,
+      phone,
+      carId,
+      carName,
+      pickupDate,
+      returnDate,
+      pickupLocation,
+      returnLocation,
+      message,
+      status,
+    });
+
+    // If status has changed, send notification email
+    if (req.body.status && req.body.status !== carRentalDetail.status) {
+      const statusMailOptions = {
+        to: email,
+        subject: `Car Rental Booking Status Update - RPS Tours`,
+        html: `
+          <h2>Your Car Rental Booking Status Has Been Updated</h2>
+          <p>Dear ${name},</p>
+          <p>Your car rental booking request for ${
+            carName || carId
+          } has been updated to: <strong>${status}</strong>.</p>
+          <p>Your booking details:</p>
+          <ul>
+            <li><strong>Pickup Date:</strong> ${formatDate(pickupDate)}</li>
+            <li><strong>Return Date:</strong> ${formatDate(returnDate)}</li>
+            <li><strong>Pickup Location:</strong> ${
+              pickupLocation || "Not specified"
+            }</li>
+          </ul>
+          <p>If you have any questions, please feel free to contact us.</p>
+          <p>Best Regards,<br>RPS Tours Team</p>
+        `,
+      };
+
+      await sendEmail(statusMailOptions);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Car rental detail updated successfully",
+      data: carRentalDetail,
+    });
+  } catch (error) {
+    console.error("Error updating car rental detail:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update car rental detail",
+    });
+  }
+});
+
+// DELETE route for deleting a car rental detail
+router.delete("/:id", async (req, res) => {
+  try {
+    const carRentalDetail = await CarRentalDetail.findByPk(req.params.id);
+
+    if (!carRentalDetail) {
+      return res.status(404).json({
+        success: false,
+        message: "Car rental detail not found",
+      });
+    }
+
+    await carRentalDetail.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Car rental detail deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting car rental detail:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete car rental detail",
+    });
+  }
+});
+
 // GET route for chart data (daily car rental bookings)
-router.get("/chart", async (req, res) => {
+router.get("/stats/chart", async (req, res) => {
   try {
     // Get the last 30 days
     const endDate = new Date();
@@ -166,7 +349,7 @@ router.get("/chart", async (req, res) => {
     carRentalDetails.forEach((item) => {
       dateMap.set(
         item.getDataValue("date"),
-        parseInt(item.getDataValue("count"))
+        Number.parseInt(item.getDataValue("count"))
       );
     });
 
@@ -181,19 +364,46 @@ router.get("/chart", async (req, res) => {
       data.push(dateMap.get(dateStr) || 0);
     }
 
+    // Get status statistics - check if status column exists
+    let statusData = [];
+    try {
+      const statusStats = await CarRentalDetail.findAll({
+        attributes: ["status", [fn("COUNT", col("id")), "count"]],
+        group: ["status"],
+        order: [[col("count"), "DESC"]],
+      });
+
+      // Format status data
+      statusData = statusStats.map((stat) => ({
+        status: stat.status || "pending",
+        count: Number.parseInt(stat.getDataValue("count")),
+      }));
+    } catch (error) {
+      console.error("Error fetching status statistics:", error);
+      // Provide default status data if column doesn't exist
+      statusData = [
+        { status: "pending", count: 0 },
+        { status: "confirmed", count: 0 },
+        { status: "cancelled", count: 0 },
+      ];
+    }
+
     res.status(200).json({
       success: true,
       data: {
-        labels,
-        datasets: [
-          {
-            label: "Car Rental Bookings",
-            data,
-            backgroundColor: "rgba(156, 39, 176, 0.5)",
-            borderColor: "rgba(156, 39, 176, 1)",
-            borderWidth: 1,
-          },
-        ],
+        timeSeriesData: {
+          labels,
+          datasets: [
+            {
+              label: "Car Rental Bookings",
+              data,
+              backgroundColor: "rgba(156, 39, 176, 0.5)",
+              borderColor: "rgba(156, 39, 176, 1)",
+              borderWidth: 1,
+            },
+          ],
+        },
+        statusData,
       },
     });
   } catch (error) {
@@ -201,6 +411,7 @@ router.get("/chart", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch chart data",
+      error: error.message,
     });
   }
 });

@@ -1,4 +1,4 @@
-// routes/hotel.js
+// module.exports = router;
 const express = require("express");
 const router = express.Router();
 const { sendEmail } = require("../utils/emailConfig");
@@ -179,6 +179,128 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch hotel",
+    });
+  }
+});
+
+// PUT route to update a hotel
+router.put("/:id", (req, res) => {
+  uploadHotelImages(req, res, async (err) => {
+    if (err) {
+      console.error("Error uploading images:", err);
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Error uploading images",
+      });
+    }
+
+    try {
+      const hotel = await Hotel.findByPk(req.params.id);
+
+      if (!hotel) {
+        return res.status(404).json({
+          success: false,
+          message: "Hotel not found",
+        });
+      }
+
+      const {
+        name,
+        location,
+        price,
+        rating,
+        type,
+        description,
+        amenities,
+        providerName,
+        providerEmail,
+        providerPhone,
+        existingImages,
+      } = req.body;
+
+      // Parse amenities if it's a string
+      let parsedAmenities = amenities;
+      if (typeof amenities === "string") {
+        try {
+          parsedAmenities = JSON.parse(amenities);
+        } catch (e) {
+          parsedAmenities = amenities.split(",").map((item) => item.trim());
+        }
+      }
+
+      // Handle images
+      let imageUrls = [];
+
+      // Keep existing images if specified
+      if (existingImages) {
+        if (typeof existingImages === "string") {
+          imageUrls = JSON.parse(existingImages);
+        } else {
+          imageUrls = existingImages;
+        }
+      }
+
+      // Add new uploaded images
+      if (req.files && req.files.length > 0) {
+        const newImageUrls = req.files.map(
+          (file) => `/uploads/hotels/${file.filename}`
+        );
+        imageUrls = [...imageUrls, ...newImageUrls];
+      }
+
+      // Update hotel
+      await hotel.update({
+        name: name || hotel.name,
+        location: location || hotel.location,
+        price: price || hotel.price,
+        rating: rating !== undefined ? rating : hotel.rating,
+        type: type || hotel.type,
+        description: description || hotel.description,
+        images: imageUrls.length > 0 ? imageUrls : hotel.images,
+        amenities: parsedAmenities || hotel.amenities,
+        providerName: providerName || hotel.providerName,
+        providerEmail: providerEmail || hotel.providerEmail,
+        providerPhone: providerPhone || hotel.providerPhone,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Hotel updated successfully",
+        data: hotel,
+      });
+    } catch (error) {
+      console.error("Error updating hotel:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update hotel. Please try again later.",
+      });
+    }
+  });
+});
+
+// DELETE route to remove a hotel
+router.delete("/:id", async (req, res) => {
+  try {
+    const hotel = await Hotel.findByPk(req.params.id);
+
+    if (!hotel) {
+      return res.status(404).json({
+        success: false,
+        message: "Hotel not found",
+      });
+    }
+
+    await hotel.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Hotel deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting hotel:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete hotel. Please try again later.",
     });
   }
 });

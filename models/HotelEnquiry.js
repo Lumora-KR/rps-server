@@ -42,6 +42,11 @@ const HotelEnquiry = sequelize.define("HotelEnquiry", {
   message: {
     type: DataTypes.TEXT,
   },
+  status: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    defaultValue: "pending",
+  },
 });
 
 module.exports = HotelEnquiry;

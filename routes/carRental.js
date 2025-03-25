@@ -1,4 +1,3 @@
-// routes/carRental.js
 const express = require("express");
 const router = express.Router();
 const { sendEmail } = require("../utils/emailConfig");
@@ -196,6 +195,145 @@ router.get("/:id", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch car rental",
+    });
+  }
+});
+
+// PUT route to update a car rental
+router.put("/:id", (req, res) => {
+  uploadCarImages(req, res, async (err) => {
+    if (err) {
+      console.error("Error uploading images:", err);
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Error uploading images",
+      });
+    }
+
+    try {
+      const carRental = await CarRental.findByPk(req.params.id);
+
+      if (!carRental) {
+        return res.status(404).json({
+          success: false,
+          message: "Car rental not found",
+        });
+      }
+
+      const {
+        title,
+        carType,
+        price,
+        priceUnit,
+        seating,
+        ac,
+        transmission,
+        fuel,
+        description,
+        features,
+        specifications,
+        providerName,
+        providerEmail,
+        providerPhone,
+        existingImages,
+      } = req.body;
+
+      // Parse features and specifications if they are strings
+      let parsedFeatures = features;
+      if (typeof features === "string") {
+        try {
+          parsedFeatures = JSON.parse(features);
+        } catch (e) {
+          parsedFeatures = features.split(",").map((item) => item.trim());
+        }
+      }
+
+      let parsedSpecifications = specifications;
+      if (typeof specifications === "string") {
+        try {
+          parsedSpecifications = JSON.parse(specifications);
+        } catch (e) {
+          parsedSpecifications = {};
+        }
+      }
+
+      // Handle images
+      let imageUrls = [];
+
+      // Keep existing images if specified
+      if (existingImages) {
+        if (typeof existingImages === "string") {
+          imageUrls = JSON.parse(existingImages);
+        } else {
+          imageUrls = existingImages;
+        }
+      }
+
+      // Add new uploaded images
+      if (req.files && req.files.length > 0) {
+        const newImageUrls = req.files.map(
+          (file) => `/uploads/cars/${file.filename}`
+        );
+        imageUrls = [...imageUrls, ...newImageUrls];
+      }
+
+      // Update car rental
+      await carRental.update({
+        title: title || carRental.title,
+        carType: carType || carRental.carType,
+        price: price || carRental.price,
+        priceUnit: priceUnit || carRental.priceUnit,
+        seating: seating || carRental.seating,
+        ac: ac !== undefined ? ac === "true" || ac === true : carRental.ac,
+        transmission: transmission || carRental.transmission,
+        fuel: fuel || carRental.fuel,
+        description: description || carRental.description,
+        features: parsedFeatures || carRental.features,
+        specifications: parsedSpecifications || carRental.specifications,
+        images: imageUrls.length > 0 ? imageUrls : carRental.images,
+        providerName: providerName || carRental.providerName,
+        providerEmail: providerEmail || carRental.providerEmail,
+        providerPhone: providerPhone || carRental.providerPhone,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Car rental updated successfully",
+        data: carRental,
+      });
+    } catch (error) {
+      console.error("Error updating car rental:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update car rental. Please try again later.",
+      });
+    }
+  });
+});
+
+// DELETE route to remove a car rental
+router.delete("/:id", async (req, res) => {
+  try {
+    const carRental = await CarRental.findByPk(req.params.id);
+
+    if (!carRental) {
+      return res.status(404).json({
+        success: false,
+        message: "Car rental not found",
+      });
+    }
+
+    await carRental.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Car rental deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting car rental:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete car rental. Please try again later.",
     });
   }
 });

@@ -14,7 +14,7 @@ const { router: authRoutes, verifyToken } = require("./routes/auth");
 const contactFormRoute = require("./routes/contactForm");
 const homeEnquiryFormRoute = require("./routes/homeEnquiryForm");
 const tourPackagesFormRoute = require("./routes/tourPackagesForm");
-const hotelsFormRoute = require("./routes/hotelsForm");
+const hotelsFormRoute = require("./routes/hotelEnquiry");
 const tourPackageDetailFormRoute = require("./routes/tourPackageDetailForm");
 const carRentalDetailFormRoute = require("./routes/carRentalDetailForm");
 // New routes
@@ -38,7 +38,7 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Public routes
 app.use("/api/auth", authRoutes);
 app.use("/api/contact", contactFormRoute);
-app.use("/api/home-enquiry", homeEnquiryFormRoute);
+app.use("/api/home-enquiries", homeEnquiryFormRoute);
 app.use("/api/tour-packages", tourPackagesFormRoute);
 app.use("/api/hotels", hotelsFormRoute);
 app.use("/api/tour-package-detail", tourPackageDetailFormRoute);

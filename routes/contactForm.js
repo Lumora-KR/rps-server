@@ -1,4 +1,3 @@
-// server/routes/contactForm.js
 const express = require("express");
 const router = express.Router();
 const { sendEmail } = require("../utils/emailConfig");
@@ -121,7 +120,7 @@ router.get("/chart", async (req, res) => {
     contactForms.forEach((item) => {
       dateMap.set(
         item.getDataValue("date"),
-        parseInt(item.getDataValue("count"))
+        Number.parseInt(item.getDataValue("count"))
       );
     });
 
@@ -156,6 +155,91 @@ router.get("/chart", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch chart data",
+    });
+  }
+});
+
+// GET a single contact form submission by ID
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contact = await ContactForm.findByPk(id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact form submission not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: contact,
+    });
+  } catch (error) {
+    console.error("Error fetching contact form submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch contact form submission",
+    });
+  }
+});
+
+// UPDATE a contact form submission
+router.put("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contact = await ContactForm.findByPk(id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact form submission not found",
+      });
+    }
+
+    // Update contact
+    await contact.update(req.body);
+
+    res.status(200).json({
+      success: true,
+      message: "Contact form submission updated successfully",
+      data: contact,
+    });
+  } catch (error) {
+    console.error("Error updating contact form submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update contact form submission",
+    });
+  }
+});
+
+// DELETE a contact form submission
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const contact = await ContactForm.findByPk(id);
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact form submission not found",
+      });
+    }
+
+    // Delete contact
+    await contact.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: "Contact form submission deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting contact form submission:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete contact form submission",
     });
   }
 });
