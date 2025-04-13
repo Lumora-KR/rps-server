@@ -5,9 +5,9 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME || "rpstours_db",
+  process.env.DB_NAME || "RPS_Site",
   process.env.DB_USER || "root",
-  process.env.DB_PASSWORD || "Rahul001",
+  process.env.DB_PASSWORD || "Root@123!",
   {
     host: process.env.DB_HOST || "localhost",
     dialect: "mysql",
