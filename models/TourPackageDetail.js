@@ -28,7 +28,7 @@ const TourPackageDetail = sequelize.define(
     },
     packageName: {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
     },
     selectedDate: {
       type: DataTypes.DATE,
@@ -47,6 +47,11 @@ const TourPackageDetail = sequelize.define(
     message: {
       type: DataTypes.TEXT,
       allowNull: true,
+    },
+    status: {
+      type: DataTypes.ENUM("pending", "confirmed", "cancelled"),
+      allowNull: false,
+      defaultValue: "pending",
     },
     createdAt: {
       type: DataTypes.DATE,

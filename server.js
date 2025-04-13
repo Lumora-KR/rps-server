@@ -17,6 +17,7 @@ const tourPackagesFormRoute = require("./routes/tourPackagesForm");
 const hotelsFormRoute = require("./routes/hotelEnquiry");
 const tourPackageDetailFormRoute = require("./routes/tourPackageDetailForm");
 const carRentalDetailFormRoute = require("./routes/carRentalDetailForm");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 // New routes
 const carRentalRoute = require("./routes/carRental");
 const hotelRoute = require("./routes/hotel");
@@ -29,8 +30,8 @@ initializeModels();
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -52,8 +53,10 @@ console.log("Registered route: /api/tour-packages");
 console.log("Registered route: /api/car-rentals");
 console.log("Registered route: /api/hotels-list");
 
+app.use("/api/dashboard", dashboardRoutes);
+
 // Protected dashboard routes
-app.use("/api/dashboard", verifyToken, (req, res) => {
+app.use("/api/dashboard/welcome", verifyToken, (req, res) => {
   res.json({ message: "Welcome to the dashboard API" });
 });
 
