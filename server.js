@@ -65,7 +65,7 @@ app.get("/api/health", (req, res) => {
 
   res.send({ status: 'OK', message: 'Backend is running!' });
 
-  res.send("RPS Tours Email Server is running");
+  res.send("Lumora Server is still Alive");
 
 });
 
