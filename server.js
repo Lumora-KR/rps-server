@@ -24,7 +24,11 @@ const hotelRoute = require("./routes/hotel");
 const hotelEnquiryRoute = require("./routes/hotelEnquiry");
 
 const app = express();
+const { initializeDatabase, testConnection } = require("./config/database"); // ⬅️ ADD THIS
 
+// Initialize database and models
+initializeDatabase();  // ⬅️ Runs CREATE DATABASE IF NOT EXISTS...
+testConnection();      // ⬅️ Logs DB connection status
 // Initialize database and models
 initializeModels();
 

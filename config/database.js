@@ -73,6 +73,8 @@ const setupDatabase = async () => {
 };
 
 module.exports = {
+  initializeDatabase,
+  testConnection,
   sequelize,
   setupDatabase,
 };

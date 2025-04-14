@@ -6,7 +6,7 @@ const { Op, fn, col, literal } = require("sequelize");
 const sequelize = require("../config/database");
 
 // POST route for form submission
-router.post("/", async (req, res) => {
+router.post("/api", async (req, res) => {
   try {
     const { formType, name, email, phone } = req.body;
 
