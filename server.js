@@ -63,9 +63,9 @@ app.use("/api/dashboard/welcome", verifyToken, (req, res) => {
 // Basic route for testing
 app.get("/api/health", (req, res) => {
 
-  res.send({ status: 'OK', message: 'Backend is running!' });
+  res.send({ status: 'OK', message: 'Lumora Server is still Alive!' });
 
-  res.send("Lumora Server is still Alive");
+
 
 });
 

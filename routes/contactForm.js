@@ -10,7 +10,6 @@ router.post("/", async (req, res) => {
   try {
     const { name, email, phone, subject, message } = req.body;
 
-    // Validate required fields
     if (!name || !email || !phone || !message) {
       return res.status(400).json({
         success: false,
@@ -18,56 +17,64 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Save to database
     const contact = await ContactForm.create(req.body);
 
-    // Prepare email content
-    const mailOptions = {
-      subject: `Contact Form: ${subject || "New Message"}`,
-      html: `
-        <h2>New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Phone:</strong> ${phone}</p>
-        <p><strong>Subject:</strong> ${subject || "Not specified"}</p>
-        <h3>Message:</h3>
-        <p>${message}</p>
-        <hr>
-        <p><em>This message was submitted from the Contact form on the RPS Tours website.</em></p>
-      `,
-    };
+    // Prepare and send admin email
+    try {
+      const mailOptions = {
+        subject: `Contact Form: ${subject || "New Message"}`,
+        html: `
+          <h2>New Contact Form Submission</h2>
+          <p><strong>Name:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Phone:</strong> ${phone}</p>
+          <p><strong>Subject:</strong> ${subject || "Not specified"}</p>
+          <h3>Message:</h3>
+          <p>${message}</p>
+          <hr>
+          <p><em>This message was submitted from the Contact form on the RPS Tours website.</em></p>
+        `,
+      };
 
-    // Send email
-    await sendEmail(mailOptions);
+      await sendEmail(mailOptions);
+    } catch (emailError) {
+      console.error("Admin email send failed:", emailError.message);
+    }
 
-    // Send confirmation email to customer
-    const confirmationMailOptions = {
-      to: email,
-      subject: `Thank you for contacting us - RPS Tours`,
-      html: `
-        <h2>Thank You for Contacting Us</h2>
-        <p>Dear ${name},</p>
-        <p>We have received your message and our team will get back to you shortly.</p>
-        <p>Best Regards,<br>RPS Tours Team</p>
-      `,
-    };
+    // Prepare and send confirmation email to user
+    try {
+      const confirmationMailOptions = {
+        to: email,
+        subject: `Thank you for contacting us - RPS Tours`,
+        html: `
+          <h2>Thank You for Contacting Us</h2>
+          <p>Dear ${name},</p>
+          <p>We have received your message and our team will get back to you shortly.</p>
+          <p>Best Regards,<br>RPS Tours Team</p>
+        `,
+      };
 
-    await sendEmail(confirmationMailOptions);
+      await sendEmail(confirmationMailOptions);
+    } catch (confirmError) {
+      console.error("User confirmation email send failed:", confirmError.message);
+    }
 
-    res.status(200).json({
+    // Finally respond to frontend
+    return res.status(200).json({
       success: true,
       message:
-        "Your message has been sent successfully. We will contact you soon!",
+        "Your message has been submitted successfully. We will contact you soon!",
       data: contact,
     });
   } catch (error) {
-    console.error("Contact form submission error:", error);
-    res.status(500).json({
+    console.error("Contact form submission error:", error.message);
+    return res.status(500).json({
       success: false,
-      message: "Failed to send your message. Please try again later.",
+      message: "Server error: Could not process your message.",
     });
   }
 });
+
 
 // GET route for retrieving all contact form submissions
 router.get("/", async (req, res) => {
