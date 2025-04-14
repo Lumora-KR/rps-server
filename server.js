@@ -61,7 +61,7 @@ app.use("/api/dashboard/welcome", verifyToken, (req, res) => {
 });
 
 // Basic route for testing
-app.get("/", (req, res) => {
+app.get("/api/health", (req, res) => {
   res.send("RPS Tours Email Server is running");
 });
 
