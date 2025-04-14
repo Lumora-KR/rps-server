@@ -58,8 +58,8 @@ app.use("/api/dashboard", verifyToken, (req, res) => {
 });
 
 // Basic route for testing
-app.get("/", (req, res) => {
-  res.send("RPS Tours Email Server is running");
+app.get("/api/beastmode", (req, res) => {
+  res.send({ status: 'OK', message: 'Backend is running!' });
 });
 
 // Error handling middleware
