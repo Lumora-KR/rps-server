@@ -39,9 +39,9 @@ const initializeModels = async () => {
 
 module.exports = {
   sequelize,
+  HomeEnquiry,
   CarRentalDetail,
   TourPackageDetail,
-  HomeEnquiry,
   ContactForm,
   User,
   CarRental,
