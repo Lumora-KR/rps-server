@@ -6,7 +6,7 @@ const { Op, fn, col, literal } = require("sequelize");
 const sequelize = require("../config/database");
 
 // POST route for form submission
-router.post("/", async (req, res) => {
+router.post("/api/home-enquiries", async (req, res) => {
   try {
     const { formType, name, email, phone } = req.body;
 
@@ -116,7 +116,7 @@ router.post("/", async (req, res) => {
 });
 
 // GET route for retrieving all home enquiries
-router.get("/", async (req, res) => {
+router.get("/api/home-enquiries", async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
     const offset = (page - 1) * limit;
